@@ -1,0 +1,82 @@
+[global]
+whitelist = true # default reject unlisted requests, allow when `method.endpoint = true`
+# set whitelist to false if you want to default allow requests, reject when `method.endpoint = false`
+allow_deployments = [] # allow requests with azure deployment-id
+
+[global.methods]
+GET = true # default disallow GET requests
+POST = true # default allow POST requests
+DELETE = true # default disallow DELETE requests
+
+[endpoint.GET]
+"/models" = true # allow list models
+"/models/{model}" = true # allow retrive model
+"/files" = true # allow list uploaded files
+"/files/{file_id}/content" = true # allow to retrieve file content
+"/fine-tunes" = true # allow to list fine-tunes
+"/fine-tunes/{fine_tune_id}" = true # allow to retrieve fine-tune
+"/fine-tunes/{fine_tune_id}/events" = true # allow to retrieve fine-tune events
+"/engines" = true # allow to list engines [deprecated]
+"/engines/{engine_id}" = true # allow to retrieve engine
+
+[endpoint.POST]
+"/completions" = true # allow create completion
+"/chat/completions" = true # allow create chat completion
+"/edits" = true # allow create edit
+"/images/generations" = true # allow create image
+"/images/edits" = true # allow create image edit
+"/images/variations" = true # allow create image variantion
+"/embeddings" = true # allow create embeddings
+"/audio/transcriptions" = true # allow create audio transcription
+"/audio/translations" = true # allow create audio translation
+"/files" = true # allow upload files
+"/fine-tunes" = true # allwo to create fine-tune
+"/fine-tunes/{fine_tune_id}/cancel" = true # allow to cancel fine-tune
+"/moderations" = true # allow to create moderation
+
+[endpoint.DELETE]
+"/files/{file_id}" = true # allow to delete uploaded file
+"/models/{model}" = true # allow to delete a finetune model
+
+[model.GET."/models/{model}"]
+path = true # filter model in path
+allows = ["*"] # default allow any model
+disallows = []
+
+[model.POST."/completions"]
+allows = ["text-davinci-003", "text-davinci-002", "text-curie-001", "text-babbage-001", "text-ada-001"]
+disallows = []
+
+[model.POST."/chat/completions"]
+allows = ["gpt-4", "gpt-4-0314", "gpt-4-32k", "gpt-4-32k-0314", "gpt-3.5-turbo", "gpt-3.5-turbo-0301"]
+disallows = []
+
+[model.POST."/edits"]
+allows = ["text-davinci-edit-001", "code-davinci-edit-001"]
+disallows = []
+
+[model.POST."/embeddings"]
+allows = ["text-embedding-ada-002", "text-search-ada-doc-001"]
+disallows = []
+
+[model.POST."/audio/transcriptions"]
+allows = ["whisper-1"]
+disallows = []
+
+[model.POST."/audio/translations"]
+allows = ["whisper-1"]
+disallows = []
+
+[model.POST."/fine-tunes"]
+allows = ["davinci", "curie", "babbage", "ada"]
+disallows = []
+allow_omitted = true
+
+[model.POST."/moderations"]
+allows = ["text-moderation-stable", "text-moderation-latest"]
+disallows = []
+
+[model.DELETE."/models/{model}"]
+path = true # filter model in path
+allows = []
+disallows = []

@@ -1,0 +1,14 @@
+bind = "0.0.0.0:8080"
+
+api_keys = [""]
+
+# organization = ""
+
+# api_base = "https://api.openai.com/v1" # default
+# api_base = "https://example-endpoint.openai.azure.com"
+
+# api_type = "open_ai" # default
+# api_type = "azure"
+# api_type = "azure_ad"
+
+# api_version = "2023-05-15" # uncomment when using azure
