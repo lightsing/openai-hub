@@ -3,7 +3,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use axum::http::{header, HeaderMap, Method, StatusCode};
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 
 use once_cell::sync::Lazy;
 
@@ -108,7 +108,7 @@ pub async fn proxy_request<U, B>(
     key: KeyGuard,
     headers: HeaderMap,
     body: B,
-) -> Result<Response, Response>
+) -> Result<Response, ErrorResponse>
 where
     U: reqwest::IntoUrl + std::fmt::Debug,
     B: Into<reqwest::Body>,
@@ -123,10 +123,7 @@ where
     if let Some(accept) = headers.get(header::ACCEPT) {
         request = request.header(header::ACCEPT, accept);
     }
-    let result = request
-        .send()
-        .await
-        .map_err(|e| request_error_into_response(e).into_response())?;
+    let result = request.send().await.map_err(request_error_into_response)?;
     let status = result.status();
     event!(Level::DEBUG, "openai returns status: {}", status);
     let body = StreamWithKey::new(result.bytes_stream(), key);

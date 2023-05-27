@@ -2,7 +2,6 @@ use crate::acl::ApiAcl;
 use serde::{Deserialize, Serialize};
 use std::net::{AddrParseError, SocketAddr};
 
-
 #[derive(Clone)]
 pub struct ServerConfig {
     pub addr: SocketAddr,
@@ -16,11 +15,10 @@ pub struct OpenAIConfig {
     pub organization: Option<String>,
     pub api_base: String,
     pub api_type: ApiType,
-    pub api_version: Option<String>
+    pub api_version: Option<String>,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum ApiType {
     #[serde(rename = "open_ai")]
     #[default]
@@ -75,5 +73,3 @@ impl ServerConfig {
         })
     }
 }
-
-
