@@ -13,10 +13,14 @@ use tokio_util::io::StreamReader;
 use tracing::{event, Level};
 
 pub async fn global_acl_layer(
-    State(acl): State<Arc<ApiAcl>>,
+    State(acl): State<Option<Arc<ApiAcl>>>,
     req: Request,
     next: Next,
 ) -> Result<Response, ErrorResponse> {
+    if acl.is_none() {
+        return Ok(next.run(req).await);
+    }
+    let acl = acl.unwrap();
     let (parts, mut body) = req.into_parts();
     event!(Level::DEBUG, "{} {}", parts.method, parts.uri.path());
 

@@ -1,0 +1,14 @@
+[package]
+name = "openai-hubd"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+openai-hub-core = { path = "../openai-hub-core" }
+tokio = { version = "1", features = ["rt", "net", "macros", "rt-multi-thread"] }
+tracing-subscriber = "0.3"
+
+[features]
+default = ["acl", "jwt-auth"]
+acl = ["openai-hub-core/acl"]
+jwt-auth = ["openai-hub-core/jwt-auth"]

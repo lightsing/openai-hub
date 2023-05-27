@@ -1,0 +1,10 @@
+[package]
+name = "openai-hub-jwt-token-gen"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+openai-hub-core = { path = "../openai-hub-core", features = ["jwt-auth"] }
+clap = { version = "4.3", features = ["derive"] }
+jwt = "0.16"
+tracing-subscriber = "0.3"

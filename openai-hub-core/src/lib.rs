@@ -77,11 +77,10 @@ impl Server {
         };
 
         #[cfg(feature = "acl")]
-        let handler = if let Some(ref acl) = self.config.global_api_acl {
-            handler.layer(from_fn_with_state(Arc::new(acl.clone()), global_acl_layer))
-        } else {
-            handler
-        };
+        let handler = handler.layer(from_fn_with_state(
+            self.config.global_api_acl.clone().map(Arc::new),
+            global_acl_layer,
+        ));
 
         axum::serve(listener, handler.into_service()).await?;
         Ok(())

@@ -7,13 +7,13 @@ use axum::response::Response;
 
 use crate::error::ErrorResponse;
 use crate::key::KeyGuard;
-use tracing::{Level, event, instrument};
+use tracing::{event, instrument, Level};
 
 #[cfg(feature = "acl")]
 mod regex_helpers {
-    use regex::Regex;
     use once_cell::sync::Lazy;
-    use tracing::{Level, event, instrument};
+    use regex::Regex;
+    use tracing::{event, instrument, Level};
 
     static SPECIAL_CHARS_EXCEPT_START_REGEX: Lazy<Regex> =
         Lazy::new(|| Regex::new(r#"([.+?^$()\[\]{}|\\])"#).unwrap());
