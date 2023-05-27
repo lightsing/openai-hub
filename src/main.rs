@@ -3,9 +3,6 @@ use openai_hub::config::ServerConfig;
 use openai_hub::Server;
 use std::fs::read_to_string;
 
-#[cfg(not(feature = "bin"))]
-compile_error!("This target requires the `bin` feature to be enabled.");
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing_subscriber::fmt::init();
