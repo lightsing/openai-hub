@@ -1,3 +1,4 @@
+#[cfg(feature = "acl")]
 mod acl;
 
 use crate::config::OpenAIConfig;
@@ -14,6 +15,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use sync_wrapper::SyncStream;
 
+#[cfg(feature = "acl")]
 pub use acl::global_acl_layer;
 
 #[derive(Clone)]

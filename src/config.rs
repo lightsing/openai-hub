@@ -1,13 +1,16 @@
-use crate::acl::ApiAcl;
 use serde::{Deserialize, Serialize};
 use std::net::{AddrParseError, SocketAddr};
+
+#[cfg(feature = "acl")]
+use crate::acl::ApiAcl;
 
 #[derive(Clone)]
 pub struct ServerConfig {
     pub addr: SocketAddr,
     pub api_keys: Vec<String>,
     pub openai: OpenAIConfig,
-    pub global_api_acl: ApiAcl,
+    #[cfg(feature = "acl")]
+    pub global_api_acl: Option<ApiAcl>,
 }
 
 #[derive(Clone)]
@@ -38,7 +41,7 @@ pub enum LoadError {
 }
 
 impl ServerConfig {
-    pub fn load(s: &str, api_acl: ApiAcl) -> Result<Self, LoadError> {
+    pub fn load(s: &str) -> Result<Self, LoadError> {
         #[derive(Deserialize)]
         struct ConfigDe {
             bind: String,
@@ -69,7 +72,14 @@ impl ServerConfig {
                 api_type,
                 api_version,
             },
-            global_api_acl: api_acl,
+            #[cfg(feature = "acl")]
+            global_api_acl: None,
         })
+    }
+
+    #[cfg(feature = "acl")]
+    pub fn set_global_api_acl(&mut self, acl: ApiAcl) -> &mut Self {
+        self.global_api_acl = Some(acl);
+        self
     }
 }

@@ -5,67 +5,72 @@ use std::task::{Context, Poll};
 use axum::http::{header, HeaderMap, Method, StatusCode};
 use axum::response::Response;
 
-use once_cell::sync::Lazy;
-
-use regex::Regex;
-
 use crate::error::ErrorResponse;
 use crate::key::KeyGuard;
-use tracing::Level;
-use tracing::{event, instrument};
+use tracing::{Level, event, instrument};
 
-static SPECIAL_CHARS_EXCEPT_START_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"([.+?^$()\[\]{}|\\])"#).unwrap());
-static SPECIAL_CHARS_EXCEPT_GROUP_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"([.+?*^$()\[\]|\\])"#).unwrap());
-static PATH_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r#"/\{(?P<name>[^/{}]+)}"#).unwrap());
+#[cfg(feature = "acl")]
+mod regex_helpers {
+    use regex::Regex;
+    use once_cell::sync::Lazy;
+    use tracing::{Level, event, instrument};
 
-#[instrument(skip_all)]
-pub fn wildcards_to_regex<S: AsRef<str>, I: Iterator<Item = S>>(
-    wildcards: I,
-) -> Result<Regex, regex::Error> {
-    let mut candidates = vec![];
-    for wildcard in wildcards {
-        let wildcard = wildcard.as_ref();
-        let wildcard = SPECIAL_CHARS_EXCEPT_START_REGEX.replace(wildcard, "\\$1");
-        // short circuit if the wildcard is allowing anything
-        if wildcard == "*" {
-            event!(Level::DEBUG, "found *, skip remaining");
-            return Ok(Regex::new("^.*$").unwrap());
+    static SPECIAL_CHARS_EXCEPT_START_REGEX: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r#"([.+?^$()\[\]{}|\\])"#).unwrap());
+    static SPECIAL_CHARS_EXCEPT_GROUP_REGEX: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r#"([.+?*^$()\[\]|\\])"#).unwrap());
+    static PATH_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r#"/\{(?P<name>[^/{}]+)}"#).unwrap());
+
+    #[instrument(skip_all)]
+    pub fn wildcards_to_regex<S: AsRef<str>, I: Iterator<Item = S>>(
+        wildcards: I,
+    ) -> Result<Regex, regex::Error> {
+        let mut candidates = vec![];
+        for wildcard in wildcards {
+            let wildcard = wildcard.as_ref();
+            let wildcard = SPECIAL_CHARS_EXCEPT_START_REGEX.replace(wildcard, "\\$1");
+            // short circuit if the wildcard is allowing anything
+            if wildcard == "*" {
+                event!(Level::DEBUG, "found *, skip remaining");
+                return Ok(Regex::new("^.*$").unwrap());
+            }
+            let mut wildcard = wildcard.replace('*', ".*");
+            // group with non-capturing group
+            wildcard.insert_str(0, "(?:");
+            wildcard.push(')');
+            event!(Level::DEBUG, "transformed wildcard to {}", wildcard);
+            candidates.push(wildcard);
         }
-        let mut wildcard = wildcard.replace('*', ".*");
-        // group with non-capturing group
-        wildcard.insert_str(0, "(?:");
-        wildcard.push(')');
-        event!(Level::DEBUG, "transformed wildcard to {}", wildcard);
-        candidates.push(wildcard);
+        let mut regex = candidates.join("|");
+        regex.insert_str(0, "^(?:");
+        regex.push_str(")$");
+        event!(Level::DEBUG, "transformed wildcards to regex {}", regex);
+        Regex::new(&regex)
     }
-    let mut regex = candidates.join("|");
-    regex.insert_str(0, "^(?:");
-    regex.push_str(")$");
-    event!(Level::DEBUG, "transformed wildcards to regex {}", regex);
-    Regex::new(&regex)
+
+    #[instrument(skip_all)]
+    pub fn endpoints_to_regex<S: AsRef<str>, I: Iterator<Item = S>>(
+        endpoints: I,
+    ) -> Result<Regex, regex::Error> {
+        let mut candidates = vec![];
+        for endpoint in endpoints {
+            let endpoint = endpoint.as_ref();
+            let endpoint = SPECIAL_CHARS_EXCEPT_GROUP_REGEX.replace(endpoint, "\\$1");
+            let endpoint = PATH_REGEX.replace(&endpoint, "/(?:[^/]+)");
+            event!(Level::DEBUG, "transformed regex rule: {}", endpoint);
+            // group with non-capturing group
+            candidates.push(format!("(?:{endpoint})"));
+        }
+        let mut regex = candidates.join("|");
+        regex.insert_str(0, "^(?:");
+        regex.push_str(")$");
+        event!(Level::DEBUG, "transformed wildcards to regex {}", regex);
+        Regex::new(&regex)
+    }
 }
 
-#[instrument(skip_all)]
-pub fn endpoints_to_regex<S: AsRef<str>, I: Iterator<Item = S>>(
-    endpoints: I,
-) -> Result<Regex, regex::Error> {
-    let mut candidates = vec![];
-    for endpoint in endpoints {
-        let endpoint = endpoint.as_ref();
-        let endpoint = SPECIAL_CHARS_EXCEPT_GROUP_REGEX.replace(endpoint, "\\$1");
-        let endpoint = PATH_REGEX.replace(&endpoint, "/(?:[^/]+)");
-        event!(Level::DEBUG, "transformed regex rule: {}", endpoint);
-        // group with non-capturing group
-        candidates.push(format!("(?:{endpoint})"));
-    }
-    let mut regex = candidates.join("|");
-    regex.insert_str(0, "^(?:");
-    regex.push_str(")$");
-    event!(Level::DEBUG, "transformed wildcards to regex {}", regex);
-    Regex::new(&regex)
-}
+#[cfg(feature = "acl")]
+pub use regex_helpers::*;
 
 pub fn request_error_into_response(e: reqwest::Error) -> ErrorResponse {
     if e.is_timeout() {

@@ -2,9 +2,10 @@ use axum::body::Body;
 use axum::http::{header, StatusCode};
 use axum::response::IntoResponse;
 use axum::response::Response;
-
-use crate::acl::AclError;
 use serde_json::json;
+
+#[cfg(feature = "acl")]
+use crate::acl::AclError;
 
 #[derive(Debug)]
 pub struct ErrorResponse {
@@ -40,6 +41,7 @@ impl IntoResponse for ErrorResponse {
     }
 }
 
+#[cfg(feature = "acl")]
 impl From<AclError> for ErrorResponse {
     fn from(err: AclError) -> Self {
         ErrorResponse {
