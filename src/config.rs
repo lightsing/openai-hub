@@ -7,11 +7,16 @@ use std::net::{AddrParseError, SocketAddr};
 pub struct ServerConfig {
     pub addr: SocketAddr,
     pub api_keys: Vec<String>,
+    pub openai: OpenAIConfig,
+    pub global_api_acl: ApiAcl,
+}
+
+#[derive(Clone)]
+pub struct OpenAIConfig {
     pub organization: Option<String>,
     pub api_base: String,
     pub api_type: ApiType,
-    pub api_version: Option<String>,
-    pub global_api_acl: ApiAcl,
+    pub api_version: Option<String>
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -60,10 +65,12 @@ impl ServerConfig {
         Ok(Self {
             addr: bind.parse()?,
             api_keys,
-            organization,
-            api_base: api_base.unwrap_or("https://api.openai.com/v1".to_string()),
-            api_type,
-            api_version,
+            openai: OpenAIConfig {
+                organization,
+                api_base: api_base.unwrap_or("https://api.openai.com/v1".to_string()),
+                api_type,
+                api_version,
+            },
             global_api_acl: api_acl,
         })
     }

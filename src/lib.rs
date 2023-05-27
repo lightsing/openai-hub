@@ -4,7 +4,7 @@ mod error;
 mod helpers;
 pub mod key;
 
-use crate::config::ApiType;
+use crate::config::{ApiType, OpenAIConfig};
 use crate::error::ErrorResponse;
 use crate::helpers::proxy_request;
 use crate::key::KeyPool;
@@ -36,7 +36,7 @@ struct AppState {
     key_pool: Arc<KeyPool>,
     acl: Arc<ApiAcl>,
     client: reqwest::Client,
-    config: Arc<ServerConfig>,
+    config: Arc<OpenAIConfig>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -65,7 +65,7 @@ impl Server {
             .build()?;
         let app = Router::new()
             .route(
-                if self.config.api_type == ApiType::OpenAI {
+                if self.config.openai.api_type == ApiType::OpenAI {
                     "/*seg"
                 } else {
                     "/openai/*seg"
@@ -78,7 +78,7 @@ impl Server {
                 key_pool: self.api_key_pool.clone(),
                 acl: Arc::new(self.config.global_api_acl.clone()),
                 client,
-                config: self.config.clone(),
+                config: Arc::new(self.config.openai.clone()),
             });
         axum::serve(listener, app).await?;
         Ok(())
