@@ -23,10 +23,33 @@ pub struct OpenAIConfig {
     pub api_version: Option<String>,
 }
 
-#[derive(Clone, Deserialize)]
-pub struct JwtAuthConfig {
-    pub secret: String,
+#[cfg(feature = "jwt-auth")]
+mod jwt_auth {
+    use hmac::digest::KeyInit;
+    use hmac::Hmac;
+    use serde::Deserialize;
+    use sha2::Sha256;
+
+    #[derive(Clone)]
+    pub struct JwtAuthConfig {
+        pub key: Hmac<Sha256>,
+    }
+
+    #[derive(Clone, Deserialize)]
+    pub struct JwtAuthConfigDe {
+        pub secret: String,
+    }
+
+    impl From<JwtAuthConfigDe> for JwtAuthConfig {
+        fn from(de: JwtAuthConfigDe) -> Self {
+            let key = Hmac::new_from_slice(de.secret.as_bytes()).unwrap();
+            Self { key }
+        }
+    }
 }
+
+pub use jwt_auth::JwtAuthConfig;
+use jwt_auth::JwtAuthConfigDe;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum ApiType {
@@ -63,7 +86,7 @@ impl ServerConfig {
             api_version: Option<String>,
             #[cfg(feature = "jwt-auth")]
             #[serde(rename = "jwt-auth")]
-            jwt_auth: JwtAuthConfig,
+            jwt_auth: JwtAuthConfigDe,
         }
         let config_de: ConfigDe = toml::from_str(s)?;
         Ok(Self {
@@ -80,7 +103,7 @@ impl ServerConfig {
             #[cfg(feature = "acl")]
             global_api_acl: None,
             #[cfg(feature = "jwt-auth")]
-            jwt_auth: config_de.jwt_auth,
+            jwt_auth: config_de.jwt_auth.into(),
         })
     }
 

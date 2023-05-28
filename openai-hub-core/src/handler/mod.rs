@@ -1,5 +1,7 @@
 #[cfg(feature = "acl")]
 mod acl;
+#[cfg(feature = "jwt-auth")]
+mod jwt;
 
 use crate::config::OpenAIConfig;
 use crate::error::ErrorResponse;
@@ -15,6 +17,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 use sync_wrapper::SyncStream;
 
+#[cfg(feature = "jwt-auth")]
+pub use self::jwt::jwt_auth_layer;
 #[cfg(feature = "acl")]
 pub use acl::global_acl_layer;
 

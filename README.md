@@ -8,7 +8,7 @@ OpenAI Hub is a robust and efficient tool designed to streamline and enhance you
 - **Global ACL:** Regulate user access to specific APIs and models, ensuring the right people have access to the right resources.
 
 ## Upcoming Features (To-Do List)
-- [ ] **User Authentication:** We're working on introducing an authentication system for users to enhance the security and integrity of the application.
+- [x] **User Authentication:** We're working on introducing an authentication system for users to enhance the security and integrity of the application.
 - [ ] **Per User/RBAC ACL:** We're developing a more granular access control system to allow permissions to be set on a per-user basis, and Role-Based Access Control (RBAC) to allow users to have roles that define their access levels.
 - [ ] **Access Log:** To help you keep track of usage, we plan to introduce an access log feature that will display token consumption statistics.
 

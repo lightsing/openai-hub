@@ -27,13 +27,15 @@ use std::io;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 
-#[cfg(any(feature = "acl"))]
+#[cfg(any(feature = "acl", feature = "jwt-auth"))]
 use axum::handler::Handler;
-#[cfg(any(feature = "acl"))]
+#[cfg(any(feature = "acl", feature = "jwt-auth"))]
 use axum::middleware::from_fn_with_state;
 
 #[cfg(feature = "acl")]
 use crate::handler::global_acl_layer;
+#[cfg(feature = "jwt-auth")]
+use crate::handler::jwt_auth_layer;
 
 static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
@@ -80,6 +82,12 @@ impl Server {
         let handler = handler.layer(from_fn_with_state(
             self.config.global_api_acl.clone().map(Arc::new),
             global_acl_layer,
+        ));
+
+        #[cfg(feature = "jwt-auth")]
+        let handler = handler.layer(from_fn_with_state(
+            Arc::new(self.config.jwt_auth.clone()),
+            jwt_auth_layer,
         ));
 
         axum::serve(listener, handler.into_service()).await?;

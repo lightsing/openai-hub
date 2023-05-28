@@ -1,11 +1,7 @@
 use chrono::{DateTime, Days, Months, Utc};
 use clap::Parser;
-use hmac::digest::KeyInit;
-use hmac::Hmac;
-use jwt::SignWithKey;
+use jwt::{RegisteredClaims, SignWithKey};
 use openai_hub_core::config::ServerConfig;
-use sha2::Sha256;
-use std::collections::BTreeMap;
 use std::fs::read_to_string;
 use std::path::PathBuf;
 
@@ -13,9 +9,9 @@ use std::path::PathBuf;
 #[command(author, version, about, long_about = None)]
 struct Cli {
     #[arg(short, long, value_name = "SUB")]
-    sub: Option<String>,
+    subject: Option<String>,
     #[arg(short, long, value_name = "EXP")]
-    exp: Option<String>,
+    expiration: Option<String>,
     #[arg(short, long, value_name = "FILE")]
     config: Option<PathBuf>,
 }
@@ -31,24 +27,23 @@ fn main() {
     let config =
         ServerConfig::load(&read_to_string(config_path).unwrap()).expect("cannot load config");
 
-    let key: Hmac<Sha256> = Hmac::new_from_slice(config.jwt_auth.secret.as_bytes()).unwrap();
-    let mut claims = BTreeMap::new();
+    let mut claims = RegisteredClaims::default();
     let utc: DateTime<Utc> = Utc::now();
 
-    if let Some(sub) = cli.sub {
-        claims.insert("sub", sub);
+    if let Some(subject) = cli.subject {
+        claims.subject = Some(subject);
     }
-    if let Some(exp) = cli.exp {
-        if !exp.is_ascii() {
+    if let Some(expiration) = cli.expiration {
+        if !expiration.is_ascii() {
             eprintln!("Invalid expiration time");
             std::process::exit(1);
         }
-        let length: u32 = exp
-            .get(..exp.len() - 1)
+        let length: u32 = expiration
+            .get(..expiration.len() - 1)
             .unwrap()
             .parse()
             .expect("invalid length");
-        let unit = exp.get(exp.len() - 1..).unwrap();
+        let unit = expiration.get(expiration.len() - 1..).unwrap();
         let exp = match unit {
             "d" => utc + Days::new(length as u64),
             "m" => utc + Months::new(length),
@@ -58,10 +53,10 @@ fn main() {
                 std::process::exit(1);
             }
         };
-        claims.insert("exp", exp.timestamp().to_string());
+        claims.expiration = Some(exp.timestamp() as u64);
     }
-    claims.insert("iat", utc.timestamp().to_string());
+    claims.issued_at = Some(utc.timestamp() as u64);
 
-    let token_str = claims.sign_with_key(&key).unwrap();
+    let token_str = claims.sign_with_key(&config.jwt_auth.key).unwrap();
     println!("{}", token_str);
 }
