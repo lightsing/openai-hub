@@ -12,3 +12,6 @@ api_keys = [""]
 # api_type = "azure_ad"
 
 # api_version = "2023-05-15" # uncomment when using azure
+
+[jwt-auth]
+secret = "some-secret"

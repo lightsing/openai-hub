@@ -11,6 +11,8 @@ pub struct ServerConfig {
     pub openai: OpenAIConfig,
     #[cfg(feature = "acl")]
     pub global_api_acl: Option<ApiAcl>,
+    #[cfg(feature = "jwt-auth")]
+    pub jwt_auth: JwtAuthConfig,
 }
 
 #[derive(Clone)]
@@ -19,6 +21,11 @@ pub struct OpenAIConfig {
     pub api_base: String,
     pub api_type: ApiType,
     pub api_version: Option<String>,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct JwtAuthConfig {
+    pub secret: String,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
@@ -54,26 +61,26 @@ impl ServerConfig {
             api_type: ApiType,
             #[serde(default)]
             api_version: Option<String>,
+            #[cfg(feature = "jwt-auth")]
+            #[serde(rename = "jwt-auth")]
+            jwt_auth: JwtAuthConfig,
         }
-        let ConfigDe {
-            bind,
-            api_keys,
-            organization,
-            api_base,
-            api_type,
-            api_version,
-        } = toml::from_str(s)?;
+        let config_de: ConfigDe = toml::from_str(s)?;
         Ok(Self {
-            addr: bind.parse()?,
-            api_keys,
+            addr: config_de.bind.parse()?,
+            api_keys: config_de.api_keys,
             openai: OpenAIConfig {
-                organization,
-                api_base: api_base.unwrap_or("https://api.openai.com/v1".to_string()),
-                api_type,
-                api_version,
+                organization: config_de.organization,
+                api_base: config_de
+                    .api_base
+                    .unwrap_or("https://api.openai.com/v1".to_string()),
+                api_type: config_de.api_type,
+                api_version: config_de.api_version,
             },
             #[cfg(feature = "acl")]
             global_api_acl: None,
+            #[cfg(feature = "jwt-auth")]
+            jwt_auth: config_de.jwt_auth,
         })
     }
 
