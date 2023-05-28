@@ -4,6 +4,18 @@ use std::net::{AddrParseError, SocketAddr};
 #[cfg(feature = "acl")]
 use crate::acl::ApiAcl;
 
+#[cfg(feature = "jwt-auth")]
+mod jwt_auth;
+#[cfg(feature = "jwt-auth")]
+pub use jwt_auth::JwtAuthConfig;
+#[cfg(feature = "jwt-auth")]
+use jwt_auth::JwtAuthConfigDe;
+
+#[cfg(feature = "access-log")]
+mod access_log;
+#[cfg(feature = "access-log")]
+pub use access_log::*;
+
 #[derive(Clone)]
 pub struct ServerConfig {
     pub addr: SocketAddr,
@@ -22,34 +34,6 @@ pub struct OpenAIConfig {
     pub api_type: ApiType,
     pub api_version: Option<String>,
 }
-
-#[cfg(feature = "jwt-auth")]
-mod jwt_auth {
-    use hmac::digest::KeyInit;
-    use hmac::Hmac;
-    use serde::Deserialize;
-    use sha2::Sha256;
-
-    #[derive(Clone)]
-    pub struct JwtAuthConfig {
-        pub key: Hmac<Sha256>,
-    }
-
-    #[derive(Clone, Deserialize)]
-    pub struct JwtAuthConfigDe {
-        pub secret: String,
-    }
-
-    impl From<JwtAuthConfigDe> for JwtAuthConfig {
-        fn from(de: JwtAuthConfigDe) -> Self {
-            let key = Hmac::new_from_slice(de.secret.as_bytes()).unwrap();
-            Self { key }
-        }
-    }
-}
-
-pub use jwt_auth::JwtAuthConfig;
-use jwt_auth::JwtAuthConfigDe;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum ApiType {
@@ -88,6 +72,10 @@ impl ServerConfig {
             #[serde(rename = "jwt-auth")]
             #[serde(default)]
             jwt_auth: Option<JwtAuthConfigDe>,
+            #[cfg(feature = "access-log")]
+            #[serde(rename = "access-log")]
+            #[serde(default)]
+            access_log: Option<AccessLogConfig>,
         }
         let config_de: ConfigDe = toml::from_str(s)?;
         Ok(Self {

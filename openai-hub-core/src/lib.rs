@@ -2,6 +2,8 @@
 //! This is the main module for the OpenAI Hub server.
 //! It handles server configuration, request handling, access control, and the server's API key pool.
 
+#[cfg(feature = "access-log")]
+mod access_log;
 #[cfg(feature = "acl")]
 /// Access Control List (ACL) module
 mod acl;
@@ -27,11 +29,13 @@ use std::io;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 
-#[cfg(any(feature = "acl", feature = "jwt-auth"))]
+#[cfg(any(feature = "acl", feature = "jwt-auth", feature = "access-log"))]
 use axum::handler::Handler;
-#[cfg(any(feature = "acl", feature = "jwt-auth"))]
+#[cfg(any(feature = "acl", feature = "jwt-auth", feature = "access-log"))]
 use axum::middleware::from_fn_with_state;
 
+#[cfg(feature = "access-log")]
+use crate::handler::access_log_layer;
 #[cfg(feature = "acl")]
 use crate::handler::global_acl_layer;
 #[cfg(feature = "jwt-auth")]

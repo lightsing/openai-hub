@@ -17,14 +17,12 @@ pub async fn jwt_auth_layer(
     next: Next,
 ) -> Result<Response, ErrorResponse> {
     match jwt_config {
-        Some(jwt_config) => {
-            jwt_auth_layer_inner(jwt_config, req, next)
-                .await
-                .map_err(|_| {
-                    event!(Level::ERROR, "Failed to authenticate request");
-                    ErrorResponse::new(StatusCode::FORBIDDEN, "invalid authorization header")
-                })
-        }
+        Some(jwt_config) => jwt_auth_layer_inner(jwt_config, req, next)
+            .await
+            .map_err(|_| {
+                event!(Level::ERROR, "Failed to authenticate request");
+                ErrorResponse::new(StatusCode::FORBIDDEN, "invalid authorization header")
+            }),
         None => Ok(next.run(req).await),
     }
 }

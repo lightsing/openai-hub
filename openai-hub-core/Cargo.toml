@@ -19,6 +19,7 @@ reqwest = { version = "0.11", features = ["stream"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0"
 sha2 = { version = "0.10", optional = true }
+sqlx = { version = "0.6", optional = true }
 sync_wrapper = { version = "0.1", features = ["futures"] }
 thiserror = "1.0"
 tokio = { version = "1", features = ["rt", "net"] }
@@ -28,6 +29,10 @@ tower = "0.4"
 tracing = "0.1"
 
 [features]
-defutures = ["acl", "jwt-auth"]
+defutures = ["acl", "jwt-auth", "access-log", "sqlite", "mysql", "postgres"]
 acl = ["once_cell", "regex"]
 jwt-auth = ["jwt", "hmac", "sha2", "chrono"]
+access-log = ["sqlx", "sqlx/runtime-tokio-native-tls"]
+sqlite = ["sqlx/sqlite"]
+mysql = ["sqlx/mysql"]
+postgres = ["sqlx/postgres"]

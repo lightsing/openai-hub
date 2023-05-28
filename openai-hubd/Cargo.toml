@@ -9,6 +9,7 @@ tokio = { version = "1", features = ["rt", "net", "macros", "rt-multi-thread"] }
 tracing-subscriber = "0.3"
 
 [features]
-default = ["acl", "jwt-auth"]
+default = ["acl", "jwt-auth", "access-log"]
 acl = ["openai-hub-core/acl"]
 jwt-auth = ["openai-hub-core/jwt-auth"]
+access-log = ["openai-hub-core/access-log", "openai-hub-core/sqlite", "openai-hub-core/mysql", "openai-hub-core/postgres"]
