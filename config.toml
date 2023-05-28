@@ -1,18 +1,60 @@
+# The IP address and port that the server will bind to
 bind = "0.0.0.0:8080"
 
+# The API keys for OpenAI. You can add multiple keys as needed.
 api_keys = [""]
 
+# The organization ID for OpenAI. Uncomment and fill in if applicable.
 # organization = ""
 
+# The base URL for the OpenAI API. The default is OpenAI's official API.
+# Uncomment and replace with your own endpoint if needed.
 # api_base = "https://api.openai.com/v1" # default
 # api_base = "https://example-endpoint.openai.azure.com"
 
+# The type of the API. By default, it's set to OpenAI's official API.
+# Uncomment and replace as needed for other API types.
 # api_type = "open_ai" # default
 # api_type = "azure"
 # api_type = "azure_ad"
 
+# The version of the API. Uncomment and fill in if using Azure.
 # api_version = "2023-05-15" # uncomment when using azure
 
-# uncomment this to enable jwt-auth
+# Uncomment the following section to enable JWT authentication.
+# Provide the secret for JWT token generation and verification.
 # [jwt-auth]
 # secret = "some-secret"
+
+# The access log configuration.
+# Specifies where and how access logs should be stored.
+[access-log]
+backend = "file" # possible backends: sqlite, mysql, postgres
+
+# For file backend, specify the file path for the access log.
+[access-log.file]
+path = "access.log"
+
+# For SQLite backend, specify the SQLite database file path.
+# [access-log.sqlite]
+# path = "access-log.sqlite"
+
+# For MySQL backend, specify the host, port, and optional socket for a MySQL database,
+# as well as the username, password, and database name for access log storage.
+# [access-log.mysql]
+# host = "localhost"
+# port = 3306
+# socket = "/var/run/mysqld/mysqld.sock" # using UNIX socket instead of TCP
+# username = "username"
+# password = "password"
+# database = "access_log"
+
+# For PostgreSQL backend, specify the host, port, and socket for a PostgreSQL database,
+# as well as the username, password, and database name for access log storage.
+# [access-log.postgres]
+# host = "localhost"
+# port = 5432
+# socket = "/var/run/postgresql/.s.PGSQL.5432"
+# username = "postgres"
+# password = "password"
+# database = "access_log"
