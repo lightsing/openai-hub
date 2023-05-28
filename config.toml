@@ -13,5 +13,6 @@ api_keys = [""]
 
 # api_version = "2023-05-15" # uncomment when using azure
 
-[jwt-auth]
-secret = "some-secret"
+# uncomment this to enable jwt-auth
+# [jwt-auth]
+# secret = "some-secret"

@@ -12,7 +12,7 @@ pub struct ServerConfig {
     #[cfg(feature = "acl")]
     pub global_api_acl: Option<ApiAcl>,
     #[cfg(feature = "jwt-auth")]
-    pub jwt_auth: JwtAuthConfig,
+    pub jwt_auth: Option<JwtAuthConfig>,
 }
 
 #[derive(Clone)]
@@ -86,7 +86,8 @@ impl ServerConfig {
             api_version: Option<String>,
             #[cfg(feature = "jwt-auth")]
             #[serde(rename = "jwt-auth")]
-            jwt_auth: JwtAuthConfigDe,
+            #[serde(default)]
+            jwt_auth: Option<JwtAuthConfigDe>,
         }
         let config_de: ConfigDe = toml::from_str(s)?;
         Ok(Self {
@@ -103,7 +104,7 @@ impl ServerConfig {
             #[cfg(feature = "acl")]
             global_api_acl: None,
             #[cfg(feature = "jwt-auth")]
-            jwt_auth: config_de.jwt_auth.into(),
+            jwt_auth: config_de.jwt_auth.map(Into::into),
         })
     }
 

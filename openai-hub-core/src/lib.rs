@@ -86,7 +86,7 @@ impl Server {
 
         #[cfg(feature = "jwt-auth")]
         let handler = handler.layer(from_fn_with_state(
-            Arc::new(self.config.jwt_auth.clone()),
+            self.config.jwt_auth.clone().map(Arc::new),
             jwt_auth_layer,
         ));
 

@@ -12,16 +12,21 @@ const AUTHED_HEADER: &str = "X-AUTHED-SUB";
 
 #[instrument(skip_all)]
 pub async fn jwt_auth_layer(
-    State(jwt_config): State<Arc<JwtAuthConfig>>,
+    State(jwt_config): State<Option<Arc<JwtAuthConfig>>>,
     req: Request,
     next: Next,
 ) -> Result<Response, ErrorResponse> {
-    jwt_auth_layer_inner(jwt_config, req, next)
-        .await
-        .map_err(|_| {
-            event!(Level::ERROR, "Failed to authenticate request");
-            ErrorResponse::new(StatusCode::FORBIDDEN, "invalid authorization header")
-        })
+    match jwt_config {
+        Some(jwt_config) => {
+            jwt_auth_layer_inner(jwt_config, req, next)
+                .await
+                .map_err(|_| {
+                    event!(Level::ERROR, "Failed to authenticate request");
+                    ErrorResponse::new(StatusCode::FORBIDDEN, "invalid authorization header")
+                })
+        }
+        None => Ok(next.run(req).await),
+    }
 }
 
 async fn jwt_auth_layer_inner(
