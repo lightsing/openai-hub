@@ -26,6 +26,7 @@ fn main() {
     }
     let config =
         ServerConfig::load(&read_to_string(config_path).unwrap()).expect("cannot load config");
+    let jwt_config = config.jwt_auth.expect("cannot find jwt auth config");
 
     let mut claims = RegisteredClaims::default();
     let utc: DateTime<Utc> = Utc::now();
@@ -57,6 +58,6 @@ fn main() {
     }
     claims.issued_at = Some(utc.timestamp() as u64);
 
-    let token_str = claims.sign_with_key(&config.jwt_auth.key).unwrap();
+    let token_str = claims.sign_with_key(&jwt_config.key).unwrap();
     println!("{}", token_str);
 }
