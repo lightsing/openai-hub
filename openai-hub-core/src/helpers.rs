@@ -144,7 +144,9 @@ where
         .unwrap())
 }
 
-pub fn tee<S, T, E>(stream: S) -> (ReceiverStream<Result<T, E>>, ReceiverStream<Result<T, E>>)
+pub type ResultStream<T, E> = ReceiverStream<Result<T, E>>;
+
+pub fn tee<S, T, E>(stream: S) -> (ResultStream<T, E>, ResultStream<T, E>)
 where
     S: Stream<Item = Result<T, E>> + Send + Sync + Unpin + 'static,
     T: Clone + Send + Sync + 'static,

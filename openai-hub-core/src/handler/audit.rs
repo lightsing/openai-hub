@@ -1,5 +1,5 @@
 use crate::audit::{AccessLog, Backend, BackendEngine};
-use crate::config::{AuditConfig};
+use crate::config::AuditConfig;
 use crate::error::ErrorResponse;
 use crate::helpers::{tee, HeaderMapExt};
 use axum::body::Body;
@@ -53,7 +53,7 @@ pub async fn audit_access_layer(
                 dup_body.map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string())),
             );
             let mut body_buffer = vec![];
-            if let Err(_) = body_reader.read_to_end(&mut body_buffer).await {
+            if body_reader.read_to_end(&mut body_buffer).await.is_err() {
                 tx.send(None).await.ok();
             }
             tx.send(Some(body_buffer)).await.ok()
