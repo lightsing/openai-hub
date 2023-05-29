@@ -26,22 +26,42 @@ api_keys = [""]
 # [jwt-auth]
 # secret = "some-secret"
 
-# The access log configuration.
+# The audit configuration.
 # Specifies where and how access logs should be stored.
-[access-log]
+[audit]
 backend = "file" # possible backends: sqlite, mysql, postgres
 
+[audit.filters.access]
+enable = true # enable this filter
+
+method = true # log request method
+uri = true # log request origin uri
+headers = true # log request origin headers
+body = true # log request body (be careful when enable with file upload apis (like audio, files))
+response = true # log openai response
+
+[audit.filters.tokens]
+enable = true # enable this filter
+
+# logging tokens on thoses endpoints
+endpoints = ["/completions", "/chat/completions", "/edits", "/embeddings"]
+# openai api won't return token consumption in stream mode
+# skip: skip calcuate token consumption for stream request
+# reject: reject stream request
+# estimate: estimate the token consumption using tiktoken (may be inaccurate)
+stream_tokens = "estimate"
+
 # For file backend, specify the file path for the access log.
-[access-log.file]
-path = "access.log"
+[audit.backends.file]
+filename = "access.log"
 
 # For SQLite backend, specify the SQLite database file path.
-# [access-log.sqlite]
-# path = "access-log.sqlite"
+# [audit.backends.sqlite]
+# filename = "audit.sqlite"
 
 # For MySQL backend, specify the host, port, and optional socket for a MySQL database,
 # as well as the username, password, and database name for access log storage.
-# [access-log.mysql]
+# [audit.backends.mysql]
 # host = "localhost"
 # port = 3306
 # socket = "/var/run/mysqld/mysqld.sock" # using UNIX socket instead of TCP
@@ -51,7 +71,7 @@ path = "access.log"
 
 # For PostgreSQL backend, specify the host, port, and socket for a PostgreSQL database,
 # as well as the username, password, and database name for access log storage.
-# [access-log.postgres]
+# [audit.backends.postgres]
 # host = "localhost"
 # port = 5432
 # socket = "/var/run/postgresql/.s.PGSQL.5432"

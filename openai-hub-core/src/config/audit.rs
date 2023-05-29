@@ -2,51 +2,123 @@ use serde::Deserialize;
 use sqlx::mysql::MySqlConnectOptions;
 use sqlx::postgres::PgConnectOptions;
 use sqlx::sqlite::SqliteConnectOptions;
+use std::collections::HashSet;
 
-#[derive(Clone, Deserialize)]
-pub struct AccessLogConfig {
-    pub backend: AccessLogBackend,
+#[derive(Clone, Debug, Deserialize)]
+pub struct AuditConfig {
+    pub backend: AuditBackendType,
     #[serde(default)]
-    pub file_backend: Option<FileAccessLogConfig>,
+    pub backends: AuditBackendConfig,
     #[serde(default)]
-    pub sqlite_backend: Option<SqliteAccessLogConfig>,
-    #[serde(default)]
-    pub mysql_backend: Option<MysqlAccessLogConfig>,
-    #[serde(default)]
-    pub postgres_backend: Option<PostgresAccessLogConfig>,
+    pub filters: AuditFiltersConfig,
 }
 
-#[derive(Copy, Clone, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum AccessLogBackend {
+pub enum AuditBackendType {
     File,
     Sqlite,
     Mysql,
     Postgres,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
-pub struct FileAccessLogConfig {
-    pub path: String,
+pub struct AuditBackendConfig {
+    pub file_backend: FileBackendConfig,
+    pub sqlite_backend: SqliteBackendConfig,
+    pub mysql_backend: MySqlBackendConfig,
+    pub postgres_backend: PostgresBackendConfig,
 }
 
-impl Default for FileAccessLogConfig {
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct AuditFiltersConfig {
+    pub access: AuditAccessFilterConfig,
+    pub tokens: AuditTokensFilterConfig,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct AuditAccessFilterConfig {
+    pub enable: bool,
+    pub method: bool,
+    pub uri: bool,
+    pub headers: bool,
+    pub body: bool,
+    pub response: bool,
+}
+
+impl Default for AuditAccessFilterConfig {
     fn default() -> Self {
         Self {
-            path: "access.log".to_string(),
+            enable: true,
+            method: true,
+            uri: true,
+            headers: false,
+            body: false,
+            response: false,
         }
     }
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
+pub struct AuditTokensFilterConfig {
+    pub enable: bool,
+    pub endpoints: HashSet<String>,
+    pub stream_tokens: StreamTokensPolicy,
+}
+
+impl Default for AuditTokensFilterConfig {
+    fn default() -> Self {
+        Self {
+            enable: true,
+            endpoints: HashSet::from_iter([
+                "/completions".to_string(),
+                "/chat/completions".to_string(),
+                "/edits".to_string(),
+                "/embeddings".to_string(),
+            ]),
+            stream_tokens: StreamTokensPolicy::default(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum StreamTokensPolicy {
+    Skip,
+    Reject,
+    Estimate,
+}
+
+impl Default for StreamTokensPolicy {
+    fn default() -> Self {
+        Self::Estimate
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
-pub struct SqliteAccessLogConfig {
+pub struct FileBackendConfig {
+    pub filename: String,
+}
+
+impl Default for FileBackendConfig {
+    fn default() -> Self {
+        Self {
+            filename: "access.log".to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default)]
+pub struct SqliteBackendConfig {
     pub filename: String,
     pub create_if_missing: bool,
 }
 
-impl Default for SqliteAccessLogConfig {
+impl Default for SqliteBackendConfig {
     fn default() -> Self {
         Self {
             filename: "access-log.sqlite".to_string(),
@@ -55,23 +127,17 @@ impl Default for SqliteAccessLogConfig {
     }
 }
 
-impl From<SqliteAccessLogConfig> for SqliteConnectOptions {
-    fn from(config: SqliteAccessLogConfig) -> Self {
-        (&config).into()
-    }
-}
-
-impl From<&SqliteAccessLogConfig> for SqliteConnectOptions {
-    fn from(config: &SqliteAccessLogConfig) -> Self {
+impl From<&SqliteBackendConfig> for SqliteConnectOptions {
+    fn from(config: &SqliteBackendConfig) -> Self {
         SqliteConnectOptions::new()
             .filename(&config.filename)
             .create_if_missing(config.create_if_missing)
     }
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
-pub struct MysqlAccessLogConfig {
+pub struct MySqlBackendConfig {
     pub host: Option<String>,
     pub port: Option<u16>,
     pub socket: Option<String>,
@@ -80,7 +146,7 @@ pub struct MysqlAccessLogConfig {
     pub database: String,
 }
 
-impl Default for MysqlAccessLogConfig {
+impl Default for MySqlBackendConfig {
     fn default() -> Self {
         Self {
             host: None,
@@ -93,14 +159,8 @@ impl Default for MysqlAccessLogConfig {
     }
 }
 
-impl From<MysqlAccessLogConfig> for MySqlConnectOptions {
-    fn from(config: MysqlAccessLogConfig) -> Self {
-        (&config).into()
-    }
-}
-
-impl From<&MysqlAccessLogConfig> for MySqlConnectOptions {
-    fn from(config: &MysqlAccessLogConfig) -> Self {
+impl From<&MySqlBackendConfig> for MySqlConnectOptions {
+    fn from(config: &MySqlBackendConfig) -> Self {
         let mut options = MySqlConnectOptions::new();
         if let Some(ref host) = config.host {
             options = options.host(host);
@@ -122,9 +182,9 @@ impl From<&MysqlAccessLogConfig> for MySqlConnectOptions {
     }
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(default)]
-pub struct PostgresAccessLogConfig {
+pub struct PostgresBackendConfig {
     pub host: Option<String>,
     pub port: Option<u16>,
     pub socket: Option<String>,
@@ -133,7 +193,7 @@ pub struct PostgresAccessLogConfig {
     pub database: String,
 }
 
-impl Default for PostgresAccessLogConfig {
+impl Default for PostgresBackendConfig {
     fn default() -> Self {
         Self {
             host: None,
@@ -146,14 +206,8 @@ impl Default for PostgresAccessLogConfig {
     }
 }
 
-impl From<PostgresAccessLogConfig> for PgConnectOptions {
-    fn from(config: PostgresAccessLogConfig) -> Self {
-        (&config).into()
-    }
-}
-
-impl From<&PostgresAccessLogConfig> for PgConnectOptions {
-    fn from(config: &PostgresAccessLogConfig) -> Self {
+impl From<&PostgresBackendConfig> for PgConnectOptions {
+    fn from(config: &PostgresBackendConfig) -> Self {
         let mut options = PgConnectOptions::new();
         if let Some(ref host) = config.host {
             options = options.host(host);

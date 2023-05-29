@@ -2,11 +2,11 @@
 //! This is the main module for the OpenAI Hub server.
 //! It handles server configuration, request handling, access control, and the server's API key pool.
 
-#[cfg(feature = "access-log")]
-mod access_log;
 #[cfg(feature = "acl")]
 /// Access Control List (ACL) module
 mod acl;
+#[cfg(feature = "audit")]
+mod audit;
 /// Configuration
 pub mod config;
 /// Error handling
@@ -28,14 +28,15 @@ use config::ServerConfig;
 use std::io;
 use std::sync::Arc;
 use tokio::net::TcpListener;
+use tracing::{event, Level};
 
-#[cfg(any(feature = "acl", feature = "jwt-auth", feature = "access-log"))]
+#[cfg(any(feature = "acl", feature = "jwt-auth", feature = "audit"))]
 use axum::handler::Handler;
-#[cfg(any(feature = "acl", feature = "jwt-auth", feature = "access-log"))]
+#[cfg(any(feature = "acl", feature = "jwt-auth", feature = "audit"))]
 use axum::middleware::from_fn_with_state;
 
-#[cfg(feature = "access-log")]
-use crate::handler::access_log_layer;
+#[cfg(feature = "audit")]
+use crate::handler::audit_access_layer;
 #[cfg(feature = "acl")]
 use crate::handler::global_acl_layer;
 #[cfg(feature = "jwt-auth")]
@@ -58,6 +59,9 @@ pub enum ServerError {
     AddrParse(#[from] std::net::AddrParseError),
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
+    #[cfg(feature = "audit")]
+    #[error(transparent)]
+    Audit(#[from] audit::BackendCreationError),
 }
 
 impl Server {
@@ -72,6 +76,7 @@ impl Server {
 
     /// Start the server and listen for incoming connections.
     pub async fn serve(self) -> Result<(), ServerError> {
+        event!(Level::INFO, "{:?}", self.config);
         let listener = TcpListener::bind(self.config.addr).await?;
         let client = reqwest::Client::builder()
             .user_agent(APP_USER_AGENT)
@@ -93,6 +98,17 @@ impl Server {
             self.config.jwt_auth.clone().map(Arc::new),
             jwt_auth_layer,
         ));
+
+        #[cfg(feature = "audit")]
+        let handler = {
+            let state = if let Some(ref audit_config) = self.config.audit {
+                let backend = audit::Backend::create_with(audit_config).await?;
+                Some((Arc::new(audit_config.clone()), backend))
+            } else {
+                None
+            };
+            handler.layer(from_fn_with_state(state, audit_access_layer))
+        };
 
         axum::serve(listener, handler.into_service()).await?;
         Ok(())

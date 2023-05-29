@@ -3,7 +3,7 @@ use hmac::Hmac;
 use serde::Deserialize;
 use sha2::Sha256;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct JwtAuthConfig {
     pub key: Hmac<Sha256>,
 }

@@ -1,9 +1,9 @@
 #[cfg(feature = "acl")]
 mod acl;
+#[cfg(feature = "audit")]
+mod audit;
 #[cfg(feature = "jwt-auth")]
 mod jwt;
-#[cfg(feature = "access-log")]
-mod log;
 
 use crate::config::OpenAIConfig;
 use crate::error::ErrorResponse;
@@ -23,8 +23,8 @@ use sync_wrapper::SyncStream;
 pub use self::jwt::jwt_auth_layer;
 #[cfg(feature = "acl")]
 pub use acl::global_acl_layer;
-#[cfg(feature = "access-log")]
-pub use log::access_log_layer;
+#[cfg(feature = "audit")]
+pub use audit::audit_access_layer;
 
 #[derive(Clone)]
 pub struct RequestHandler {

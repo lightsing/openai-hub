@@ -12,4 +12,4 @@ tracing-subscriber = "0.3"
 default = ["acl", "jwt-auth", "access-log"]
 acl = ["openai-hub-core/acl"]
 jwt-auth = ["openai-hub-core/jwt-auth"]
-access-log = ["openai-hub-core/access-log", "openai-hub-core/sqlite", "openai-hub-core/mysql", "openai-hub-core/postgres"]
+access-log = ["openai-hub-core/audit", "openai-hub-core/sqlite", "openai-hub-core/mysql", "openai-hub-core/postgres"]

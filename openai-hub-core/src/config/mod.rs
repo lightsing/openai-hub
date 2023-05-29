@@ -11,12 +11,12 @@ pub use jwt_auth::JwtAuthConfig;
 #[cfg(feature = "jwt-auth")]
 use jwt_auth::JwtAuthConfigDe;
 
-#[cfg(feature = "access-log")]
-mod access_log;
-#[cfg(feature = "access-log")]
-pub use access_log::*;
+#[cfg(feature = "audit")]
+mod audit;
+#[cfg(feature = "audit")]
+pub use audit::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ServerConfig {
     pub addr: SocketAddr,
     pub api_keys: Vec<String>,
@@ -25,9 +25,11 @@ pub struct ServerConfig {
     pub global_api_acl: Option<ApiAcl>,
     #[cfg(feature = "jwt-auth")]
     pub jwt_auth: Option<JwtAuthConfig>,
+    #[cfg(feature = "audit")]
+    pub audit: Option<AuditConfig>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct OpenAIConfig {
     pub organization: Option<String>,
     pub api_base: String,
@@ -72,10 +74,9 @@ impl ServerConfig {
             #[serde(rename = "jwt-auth")]
             #[serde(default)]
             jwt_auth: Option<JwtAuthConfigDe>,
-            #[cfg(feature = "access-log")]
-            #[serde(rename = "access-log")]
+            #[cfg(feature = "audit")]
             #[serde(default)]
-            access_log: Option<AccessLogConfig>,
+            audit: Option<AuditConfig>,
         }
         let config_de: ConfigDe = toml::from_str(s)?;
         Ok(Self {
@@ -93,6 +94,8 @@ impl ServerConfig {
             global_api_acl: None,
             #[cfg(feature = "jwt-auth")]
             jwt_auth: config_de.jwt_auth.map(Into::into),
+            #[cfg(feature = "audit")]
+            audit: config_de.audit,
         })
     }
 

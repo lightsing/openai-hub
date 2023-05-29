@@ -1,9 +1,15 @@
 use axum::body::Body;
+use std::collections::BTreeMap;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use axum::http::{header, HeaderMap, Method, StatusCode};
 use axum::response::Response;
+use base64::Engine;
+use futures::{Stream, StreamExt};
+use tokio::sync::mpsc;
+
+use tokio_stream::wrappers::ReceiverStream;
 
 use crate::error::ErrorResponse;
 use crate::key::KeyGuard;
@@ -136,4 +142,61 @@ where
         .status(status)
         .body(Body::from_stream(body))
         .unwrap())
+}
+
+pub fn tee<S, T, E>(stream: S) -> (ReceiverStream<Result<T, E>>, ReceiverStream<Result<T, E>>)
+where
+    S: Stream<Item = Result<T, E>> + Send + Sync + Unpin + 'static,
+    T: Clone + Send + Sync + 'static,
+    E: Send + Sync + 'static,
+{
+    let (tx1, rx1) = mpsc::channel(1);
+    let (tx2, rx2) = mpsc::channel(1);
+
+    tokio::spawn(async move {
+        let mut stream = stream;
+
+        while let Some(value) = stream.next().await {
+            match value {
+                Ok(t) => {
+                    let clone_t = t.clone();
+                    let tx1 = tx1.clone();
+                    tokio::spawn(async move {
+                        tx1.send(Ok(clone_t)).await.ok();
+                    });
+                    let tx2 = tx2.clone();
+                    tokio::spawn(async move {
+                        tx2.send(Ok(t)).await.ok();
+                    });
+                }
+                Err(e) => {
+                    tx2.send(Err(e)).await.ok();
+                }
+            }
+        }
+    });
+
+    (ReceiverStream::new(rx1), ReceiverStream::new(rx2))
+}
+
+pub trait HeaderMapExt {
+    fn as_btree_map(&self) -> BTreeMap<String, String>;
+}
+
+impl HeaderMapExt for HeaderMap {
+    fn as_btree_map(&self) -> BTreeMap<String, String> {
+        self.iter()
+            .map(|(k, v)| match v.to_str() {
+                Ok(s) => (k.to_string(), s.to_string()),
+                Err(_) => (
+                    k.to_string(),
+                    if cfg!(feature = "base64-serialize") {
+                        base64::engine::general_purpose::STANDARD.encode(v.as_bytes())
+                    } else {
+                        "<ERROR: non-ASCII HeaderValue>".to_string()
+                    },
+                ),
+            })
+            .collect()
+    }
 }
