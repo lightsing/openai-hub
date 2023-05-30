@@ -8,7 +8,7 @@ use jwt::{RegisteredClaims, VerifyWithKey};
 use std::sync::Arc;
 use tracing::{event, instrument, Level};
 
-const AUTHED_HEADER: &str = "X-AUTHED-SUB";
+pub const AUTHED_HEADER: &str = "X-AUTHED-SUB";
 
 #[instrument(skip_all)]
 pub async fn jwt_auth_layer(

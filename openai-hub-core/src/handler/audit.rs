@@ -9,6 +9,7 @@ use axum::middleware::Next;
 use axum::response::Response;
 use futures::TryStreamExt;
 
+use crate::handler::jwt::AUTHED_HEADER;
 use std::io;
 use std::sync::Arc;
 use sync_wrapper::SyncStream;
@@ -35,6 +36,9 @@ pub async fn audit_access_layer(
     let (parts, body) = req.into_parts();
     let mut log = AccessLog::now();
 
+    if let Some(user) = parts.headers.get(AUTHED_HEADER) {
+        log.user = Some(user.to_str().unwrap().to_string());
+    }
     if config.filters.access.method {
         log.method = Some(parts.method.as_str().to_string());
     }
