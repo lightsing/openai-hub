@@ -136,12 +136,14 @@ where
     }
     let result = request.send().await.map_err(request_error_into_response)?;
     let status = result.status();
+    let headers = result.headers().clone();
     event!(Level::DEBUG, "openai returns status: {}", status);
     let body = StreamWithKey::new(result.bytes_stream(), key);
-    Ok(Response::builder()
-        .status(status)
-        .body(Body::from_stream(body))
-        .unwrap())
+    let mut builder = Response::builder().status(status);
+    for (k, v) in headers.iter() {
+        builder = builder.header(k, v);
+    }
+    Ok(builder.body(Body::from_stream(body)).unwrap())
 }
 
 pub type ResultStream<T, E> = ReceiverStream<Result<T, E>>;
