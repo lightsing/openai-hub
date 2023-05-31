@@ -2,7 +2,9 @@ use crate::config::{AuditBackendType, AuditConfig};
 use base64::engine::general_purpose;
 use base64::Engine;
 use chrono::serde::ts_milliseconds;
-use serde::{Serialize, Serializer};
+use rand::distributions::{Alphanumeric, DistString};
+use rand::thread_rng;
+use serde::{Deserialize, Serialize, Serializer};
 use sqlx::{MySql, Pool, Postgres, Sqlite};
 use std::collections::BTreeMap;
 use std::ops::Deref;
@@ -17,6 +19,7 @@ pub trait BackendEngine {
         Ok(())
     }
     async fn log_access(&self, access: AccessLog);
+    async fn log_tokens(&self, tokens: TokenUsageLog);
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -25,6 +28,7 @@ pub struct AccessLog {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<String>,
+    pub ray_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -49,8 +53,10 @@ pub struct AccessLog {
 
 impl AccessLog {
     pub fn now() -> Self {
+        let ray_id = Alphanumeric.sample_string(&mut thread_rng(), 16);
         Self {
             timestamp: chrono::Utc::now(),
+            ray_id,
             ..Default::default()
         }
     }
@@ -66,6 +72,25 @@ impl AccessLog {
             String::from_utf8(b.clone()).unwrap_or_else(|_| general_purpose::STANDARD.encode(b))
         })
     }
+}
+
+#[derive(Debug, Serialize)]
+pub struct TokenUsageLog {
+    #[serde(with = "ts_milliseconds")]
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
+    pub ray_id: String,
+    pub model: String,
+    pub usage: TokenUsage,
+    pub is_estimated: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TokenUsage {
+    pub prompt_tokens: usize,
+    pub completion_tokens: usize,
+    pub total_tokens: usize,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -108,6 +133,13 @@ impl BackendEngine for Backend {
             Backend::Database(backend) => backend.log_access(access).await,
         }
     }
+
+    async fn log_tokens(&self, tokens: TokenUsageLog) {
+        match self {
+            Backend::Text(backend) => backend.log_tokens(tokens).await,
+            Backend::Database(backend) => backend.log_tokens(tokens).await,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -139,6 +171,19 @@ impl BackendEngine for TextBackend {
                 Level::ERROR,
                 error = ?e,
                 "Failed to write access log to file"
+            );
+        }
+    }
+
+    async fn log_tokens(&self, tokens: TokenUsageLog) {
+        let mut writer = self.writer.lock().await;
+        let mut vec = serde_json::to_vec(&tokens).unwrap();
+        vec.push(b'\n');
+        if let Err(e) = writer.write_all(&vec).await {
+            event!(
+                Level::ERROR,
+                error = ?e,
+                "Failed to write tokens log to file"
             );
         }
     }
@@ -177,11 +222,20 @@ impl BackendEngine for DatabaseBackend {
             Self::Postgres(pool) => pool.init().await,
         }
     }
+
     async fn log_access(&self, access: AccessLog) {
         match self {
             DatabaseBackend::Sqlite(pool) => pool.log_access(access).await,
             DatabaseBackend::MySql(pool) => pool.log_access(access).await,
             DatabaseBackend::Postgres(pool) => pool.log_access(access).await,
+        }
+    }
+
+    async fn log_tokens(&self, tokens: TokenUsageLog) {
+        match self {
+            DatabaseBackend::Sqlite(pool) => pool.log_tokens(tokens).await,
+            DatabaseBackend::MySql(pool) => pool.log_tokens(tokens).await,
+            DatabaseBackend::Postgres(pool) => pool.log_tokens(tokens).await,
         }
     }
 }
@@ -192,7 +246,8 @@ impl BackendEngine for Pool<Sqlite> {
         sqlx::query(
             r#"CREATE TABLE IF NOT EXISTS audit_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp INTEGER,
+    timestamp DATETIME NOT NULL,
+    ray_id TEXT NOT NULL,
     user TEXT,
     method TEXT,
     uri TEXT,
@@ -205,14 +260,30 @@ impl BackendEngine for Pool<Sqlite> {
         )
         .execute(self)
         .await?;
+        sqlx::query(
+            r#"CREATE TABLE IF NOT EXISTS tokens_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp DATETIME,
+    ray_id TEXT NOT NULL,
+    user TEXT,
+    model TEXT NOT NULL,
+    is_estimated BOOLEAN NOT NULL,
+    prompt_tokens INTEGER NOT NULL,
+    completion_tokens INTEGER NOT NULL,
+    total_tokens INTEGER NOT NULL
+)"#,
+        )
+        .execute(self)
+        .await?;
         Ok(())
     }
     async fn log_access(&self, log: AccessLog) {
         let body = log.body_as_string();
         let response_body = log.response_body_as_string();
-        let result = sqlx::query(r#"INSERT INTO audit_log (timestamp, user, method, uri, headers, body, response_status, response_headers, response_body)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
-            .bind(log.timestamp.timestamp_millis())
+        let result = sqlx::query(r#"INSERT INTO audit_log (timestamp, ray_id, user, method, uri, headers, body, response_status, response_headers, response_body)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
+            .bind(log.timestamp)
+            .bind(log.ray_id)
             .bind(log.user)
             .bind(log.method)
             .bind(log.uri)
@@ -231,6 +302,28 @@ impl BackendEngine for Pool<Sqlite> {
             );
         }
     }
+
+    async fn log_tokens(&self, tokens: TokenUsageLog) {
+        let result = sqlx::query(r#"INSERT INTO tokens_log (timestamp, ray_id, user, model, is_estimated, prompt_tokens, completion_tokens, total_tokens)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#)
+            .bind(tokens.timestamp)
+            .bind(tokens.ray_id)
+            .bind(tokens.user)
+            .bind(tokens.model)
+            .bind(tokens.is_estimated)
+            .bind(tokens.usage.prompt_tokens as u32)
+            .bind(tokens.usage.completion_tokens as u32)
+            .bind(tokens.usage.total_tokens as u32)
+            .execute(self)
+            .await;
+        if let Err(e) = result {
+            event!(
+                Level::ERROR,
+                error = ?e,
+                "Failed to write tokens log to sqlite"
+            );
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -239,7 +332,8 @@ impl BackendEngine for Pool<MySql> {
         sqlx::query(
             r#"CREATE TABLE IF NOT EXISTS audit_log (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
-    timestamp TIMESTAMP,
+    timestamp TIMESTAMP NOT NULL,
+    ray_id VARCHAR(16) NOT NULL,
     user VARCHAR(255),
     method VARCHAR(10),
     uri VARCHAR(255),
@@ -252,15 +346,31 @@ impl BackendEngine for Pool<MySql> {
         )
         .execute(self)
         .await?;
+        sqlx::query(
+            r#"CREATE TABLE IF NOT EXISTS tokens_log (
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    timestamp TIMESTAMP NOT NULL,
+    ray_id VARCHAR(16) NOT NULL,
+    user VARCHAR(255),
+    model VARCHAR(255) NOT NULL,
+    is_estimated BOOLEAN NOT NULL,
+    prompt_tokens BIGINT UNSIGNED NOT NULL,
+    completion_tokens BIGINT UNSIGNED NOT NULL,
+    total_tokens BIGINT UNSIGNED NOT NULL
+    )"#,
+        )
+        .execute(self)
+        .await?;
         Ok(())
     }
 
     async fn log_access(&self, log: AccessLog) {
         let body = log.body_as_string();
         let response_body = log.response_body_as_string();
-        let result = sqlx::query(r#"INSERT INTO audit_log (timestamp, user, method, uri, headers, body, response_status, response_headers, response_body)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
-            .bind(log.timestamp.timestamp_millis())
+        let result = sqlx::query(r#"INSERT INTO audit_log (timestamp, ray_id, user, method, uri, headers, body, response_status, response_headers, response_body)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#)
+            .bind(log.timestamp)
+            .bind(log.ray_id)
             .bind(log.user)
             .bind(log.method)
             .bind(log.uri)
@@ -279,6 +389,28 @@ impl BackendEngine for Pool<MySql> {
             );
         }
     }
+
+    async fn log_tokens(&self, tokens: TokenUsageLog) {
+        let result = sqlx::query(r#"INSERT INTO tokens_log (timestamp, ray_id, user, model, is_estimated, prompt_tokens, completion_tokens, total_tokens)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#)
+            .bind(tokens.timestamp)
+            .bind(tokens.ray_id)
+            .bind(tokens.user)
+            .bind(tokens.model)
+            .bind(tokens.is_estimated)
+            .bind(tokens.usage.prompt_tokens as u64)
+            .bind(tokens.usage.completion_tokens as u64)
+            .bind(tokens.usage.total_tokens as u64)
+            .execute(self)
+            .await;
+        if let Err(e) = result {
+            event!(
+                Level::ERROR,
+                error = ?e,
+                "Failed to write tokens log to sqlite"
+            );
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -287,7 +419,8 @@ impl BackendEngine for Pool<Postgres> {
         sqlx::query(
             r#"CREATE TABLE IF NOT EXISTS audit_log (
     id SERIAL PRIMARY KEY,
-    timestamp TIMESTAMP,
+    timestamp TIMESTAMPTZ NOT NULL,
+    ray_id VARCHAR(16) NOT NULL,
     user VARCHAR(255),
     method VARCHAR(10),
     uri VARCHAR(255),
@@ -300,15 +433,32 @@ impl BackendEngine for Pool<Postgres> {
         )
         .execute(self)
         .await?;
+
+        sqlx::query(
+            r#"CREATE TABLE IF NOT EXISTS tokens_log (
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    timestamp TIMESTAMPTZ NOT NULL,
+    ray_id VARCHAR(16) NOT NULL,
+    user VARCHAR(255),
+    model VARCHAR(255) NOT NULL,
+    is_estimated BOOL NOT NULL,
+    prompt_tokens BIGINT NOT NULL,
+    completion_tokens BIGINT NOT NULL,
+    total_tokens BIGINT NOT NULL
+    )"#,
+        )
+        .execute(self)
+        .await?;
         Ok(())
     }
 
     async fn log_access(&self, log: AccessLog) {
         let body = log.body_as_string();
         let response_body = log.response_body_as_string();
-        let result = sqlx::query(r#"INSERT INTO audit_log (timestamp, user, method, uri, headers, body, response_status, response_headers, response_body)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"#)
-            .bind(log.timestamp.timestamp_millis())
+        let result = sqlx::query(r#"INSERT INTO audit_log (timestamp, ray_id, user, method, uri, headers, body, response_status, response_headers, response_body)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"#)
+            .bind(log.timestamp)
+            .bind(log.ray_id)
             .bind(log.user)
             .bind(log.method)
             .bind(log.uri)
@@ -324,6 +474,28 @@ impl BackendEngine for Pool<Postgres> {
                 Level::ERROR,
                 error = ?e,
                 "Failed to write access log to Postgres"
+            );
+        }
+    }
+
+    async fn log_tokens(&self, tokens: TokenUsageLog) {
+        let result = sqlx::query(r#"INSERT INTO tokens_log (timestamp, ray_id, user, model, is_estimated, prompt_tokens, completion_tokens, total_tokens)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"#)
+            .bind(tokens.timestamp)
+            .bind(tokens.ray_id)
+            .bind(tokens.user)
+            .bind(tokens.model)
+            .bind(tokens.is_estimated)
+            .bind(tokens.usage.prompt_tokens as i64)
+            .bind(tokens.usage.completion_tokens as i64)
+            .bind(tokens.usage.total_tokens as i64)
+            .execute(self)
+            .await;
+        if let Err(e) = result {
+            event!(
+                Level::ERROR,
+                error = ?e,
+                "Failed to write tokens log to sqlite"
             );
         }
     }

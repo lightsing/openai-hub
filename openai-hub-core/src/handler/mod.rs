@@ -2,6 +2,7 @@
 mod acl;
 #[cfg(feature = "audit")]
 mod audit;
+mod helpers;
 #[cfg(feature = "jwt-auth")]
 mod jwt;
 
@@ -24,7 +25,7 @@ pub use self::jwt::jwt_auth_layer;
 #[cfg(feature = "acl")]
 pub use acl::global_acl_layer;
 #[cfg(feature = "audit")]
-pub use audit::audit_access_layer;
+pub use audit::{audit_access_layer, audit_tokens_layer};
 
 #[derive(Clone)]
 pub struct RequestHandler {

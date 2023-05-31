@@ -16,6 +16,7 @@ jwt = { version = "0.16", optional = true }
 once_cell = { version = "1.17", optional = true }
 parking_lot = "0.12"
 pin-project = "1.1"
+rand = { version = "0.8", optional = true}
 regex = { version = "1.8", optional = true }
 reqwest = { version = "0.11", features = ["stream"] }
 serde = { version = "1", features = ["derive"] }
@@ -36,7 +37,7 @@ tracing = "0.1"
 defutures = ["acl", "jwt-auth", "audit", "sqlite", "mysql", "postgres"]
 acl = ["once_cell", "regex"]
 jwt-auth = ["jwt", "hmac", "sha2", "chrono"]
-audit = ["sqlx", "sqlx/runtime-tokio-native-tls", "chrono", "chrono/serde", "base64-serialize"]
+audit = ["sqlx", "sqlx/runtime-tokio-native-tls", "sqlx/chrono", "chrono", "chrono/serde", "base64-serialize", "rand"]
 sqlite = ["sqlx/sqlite"]
 mysql = ["sqlx/mysql"]
 postgres = ["sqlx/postgres"]

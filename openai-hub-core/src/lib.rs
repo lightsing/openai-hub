@@ -35,12 +35,12 @@ use axum::handler::Handler;
 #[cfg(any(feature = "acl", feature = "jwt-auth", feature = "audit"))]
 use axum::middleware::from_fn_with_state;
 
-#[cfg(feature = "audit")]
-use crate::handler::audit_access_layer;
 #[cfg(feature = "acl")]
 use crate::handler::global_acl_layer;
 #[cfg(feature = "jwt-auth")]
 use crate::handler::jwt_auth_layer;
+#[cfg(feature = "audit")]
+use crate::handler::{audit_access_layer, audit_tokens_layer};
 
 static APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
@@ -87,6 +87,19 @@ impl Server {
             config: Arc::new(self.config.openai.clone()),
         };
 
+        #[cfg(feature = "audit")]
+        let handler = {
+            let state = if let Some(ref audit_config) = self.config.audit {
+                let backend = audit::Backend::create_with(audit_config).await?;
+                Some((Arc::new(audit_config.clone()), backend))
+            } else {
+                None
+            };
+            handler
+                .layer(from_fn_with_state(state.clone(), audit_tokens_layer))
+                .layer(from_fn_with_state(state, audit_access_layer))
+        };
+
         #[cfg(feature = "acl")]
         let handler = handler.layer(from_fn_with_state(
             self.config.global_api_acl.clone().map(Arc::new),
@@ -98,17 +111,6 @@ impl Server {
             self.config.jwt_auth.clone().map(Arc::new),
             jwt_auth_layer,
         ));
-
-        #[cfg(feature = "audit")]
-        let handler = {
-            let state = if let Some(ref audit_config) = self.config.audit {
-                let backend = audit::Backend::create_with(audit_config).await?;
-                Some((Arc::new(audit_config.clone()), backend))
-            } else {
-                None
-            };
-            handler.layer(from_fn_with_state(state, audit_access_layer))
-        };
 
         axum::serve(listener, handler.into_service()).await?;
         Ok(())
