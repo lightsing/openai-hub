@@ -9,6 +9,35 @@ OpenAI Hub is a comprehensive and robust tool designed to streamline and enhance
 - **JWT Authentication:** Secure and reliable user authentication system using JSON Web Tokens (JWT).
 - **Access Log:** Keep track of API usage and token consumption with our newly implemented access log feature. You can choose to store logs in file, SQLite, MySQL, or PostgreSQL backends.
 
+## Getting Started
+
+You can run OpenAI Hub either by cloning the repository and using Cargo, or by using Docker.
+
+### Running with Cargo
+
+```bash
+git clone https://github.com/lightsing/openai-hub.git
+cd openai-hub
+
+# build and run
+cargo run run --bin openai-hubd --all-features --release
+```
+
+### Running with Docker
+
+```bash
+# build the Docker image
+docker build -t openai-hub .
+
+# run the Docker container
+docker run -p 8080:8080 openai-hub
+
+# or with your custom configs
+docker run -v $(pwd)/config.toml:/opt/openai-hub/config.toml -v $(pwd)/acl.toml:/opt/openai-hub/acl.toml -p <yourport> openai-hub
+```
+
+Please replace `username` with the appropriate GitHub username.
+
 ## Upcoming Features (To-Do List)
 - [ ] **Per User/RBAC ACL:** We're developing a more granular access control system to allow permissions to be set on a per-user basis, and Role-Based Access Control (RBAC) to allow users to have roles that define their access levels.
 
