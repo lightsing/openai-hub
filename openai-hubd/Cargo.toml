@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+clap = { version = "4.3", features = ["derive"] }
 openai-hub-core = { path = "../openai-hub-core" }
 tokio = { version = "1", features = ["rt", "net", "macros", "rt-multi-thread"] }
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [features]
 default = ["acl", "jwt-auth", "access-log"]

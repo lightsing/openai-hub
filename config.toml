@@ -29,7 +29,7 @@ api_keys = [""]
 # The audit configuration.
 # Specifies where and how access logs should be stored.
 [audit]
-backend = "file" # possible backends: sqlite, mysql, postgres
+backend = "file" # possible backends: file, sqlite, mysql, postgres
 
 [audit.filters.access]
 enable = true # enable this filter
