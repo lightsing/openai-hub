@@ -4,9 +4,9 @@ whitelist = true # default reject unlisted requests, allow when `method.endpoint
 allow_deployments = [] # allow requests with azure deployment-id
 
 [global.methods]
-GET = true # default disallow GET requests
+GET = false # default disallow GET requests
 POST = true # default allow POST requests
-DELETE = true # default disallow DELETE requests
+DELETE = false # default disallow DELETE requests
 
 [endpoint.GET]
 "/models" = true # allow list models

@@ -35,7 +35,7 @@ docker pull lightsing/openai-hub:latest
 docker run -p 8080:8080 lightsing/openai-hub
 
 # or with your custom configs
-docker run -v $(pwd)/config.toml:/opt/openai-hub/config.toml -v $(pwd)/acl.toml:/opt/openai-hub/acl.toml -p <yourport> lightsing/openai-hub
+docker run -v /your/path/to/config:/opt/openai-hub/config -p <yourport> lightsing/openai-hub
 ```
 
 Please replace `username` with the appropriate GitHub username.
