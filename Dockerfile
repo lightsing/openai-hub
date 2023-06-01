@@ -2,7 +2,7 @@ FROM rust:latest as builder
 
 WORKDIR /openai-hub
 
-COPY Cargo.toml /openai-hub/Cargo.toml
+COPY Cargo.toml Cargo.lock /openai-hub/
 COPY openai-hubd/Cargo.toml /openai-hub/openai-hubd/Cargo.toml
 COPY openai-hub-core/Cargo.toml /openai-hub/openai-hub-core/Cargo.toml
 COPY openai-hub-jwt-token-gen/Cargo.toml /openai-hub/openai-hub-jwt-token-gen/Cargo.toml
@@ -37,6 +37,6 @@ WORKDIR /opt/openai-hub
 RUN mkdir -p /opt/openai-hub
 COPY --from=builder /openai-hub/build/openai-hubd /opt/openai-hub/
 COPY --from=builder /openai-hub/build/openai-hub-jwt-token-gen /opt/openai-hub/
-COPY config.toml acl.toml /opt/openai-hub/
+COPY config.toml acl.toml /opt/openai-hub/config/
 
-CMD ["/opt/openai-hub/openai-hubd"]
+CMD ["/opt/openai-hub/openai-hubd", "-c", "config/config.toml", "-a", "config/acl.toml"]

@@ -1,4 +1,6 @@
 # OpenAI Hub
+[![Licence](https://img.shields.io/github/license/Ileriayo/markdown-badges?style=for-the-badge)](./LICENSE)
+[![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/repository/docker/lightsing/openai-hub)
 
 OpenAI Hub is a comprehensive and robust tool designed to streamline and enhance your interaction with OpenAI's API. It features an innovative way to load balance multiple API keys, allowing users to make requests without needing individual OpenAI API keys. Additionally, it employs a global access control list (ACL) that gives you the power to regulate which APIs and models users can utilize. The Hub also includes JWT Authentication for secure and reliable user authentication, and now, an Access Log feature for tracking API usage and token consumption.
 
@@ -26,14 +28,14 @@ cargo run run --bin openai-hubd --all-features --release
 ### Running with Docker
 
 ```bash
-# build the Docker image
-docker build -t openai-hub .
+# pull the Docker image
+docker pull lightsing/openai-hub:latest
 
 # run the Docker container
-docker run -p 8080:8080 openai-hub
+docker run -p 8080:8080 lightsing/openai-hub
 
 # or with your custom configs
-docker run -v $(pwd)/config.toml:/opt/openai-hub/config.toml -v $(pwd)/acl.toml:/opt/openai-hub/acl.toml -p <yourport> openai-hub
+docker run -v $(pwd)/config.toml:/opt/openai-hub/config.toml -v $(pwd)/acl.toml:/opt/openai-hub/acl.toml -p <yourport> lightsing/openai-hub
 ```
 
 Please replace `username` with the appropriate GitHub username.
