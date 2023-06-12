@@ -132,7 +132,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "axum"
 version = "0.6.16"
-source = "git+https://github.com/tokio-rs/axum#eafee2d2f40df82c5ac9016bf27d0d9ffe8bfe7b"
+source = "git+https://github.com/tokio-rs/axum#8374c3e789e71b4150fef46e274c9ed1ef9358bf"
 dependencies = [
  "async-trait",
  "axum-core",
@@ -165,7 +165,7 @@ dependencies = [
 [[package]]
 name = "axum-core"
 version = "0.3.4"
-source = "git+https://github.com/tokio-rs/axum#eafee2d2f40df82c5ac9016bf27d0d9ffe8bfe7b"
+source = "git+https://github.com/tokio-rs/axum#8374c3e789e71b4150fef46e274c9ed1ef9358bf"
 dependencies = [
  "async-trait",
  "bytes",
