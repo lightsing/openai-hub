@@ -141,7 +141,7 @@ dependencies = [
  "futures-util",
  "http",
  "http-body 0.4.5",
- "hyper 0.14.26",
+ "hyper 0.14.27",
  "hyper 1.0.0-rc.3",
  "itoa",
  "matchit",
@@ -838,9 +838,9 @@ checksum = "c4a1e36c821dbe04574f602848a19f742f4fb3c98d40449f11bcad18d6b17421"
 
 [[package]]
 name = "hyper"
-version = "0.14.26"
+version = "0.14.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab302d72a6f11a3b910431ff93aae7e773078c769f0a3ef15fb9ec692ed147d4"
+checksum = "ffb1cfd654a8219eaef89881fdb3bb3b1cdc5fa75ded05d6933b2b382e395468"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -870,6 +870,7 @@ dependencies = [
  "futures-channel",
  "futures-core",
  "futures-util",
+ "h2",
  "http",
  "http-body 1.0.0-rc.2",
  "httparse",
@@ -888,7 +889,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6183ddfa99b85da61a140bea0efc93fdf56ceaa041b37d553518030827f9905"
 dependencies = [
  "bytes",
- "hyper 0.14.26",
+ "hyper 0.14.27",
  "native-tls",
  "tokio",
  "tokio-native-tls",
@@ -1249,7 +1250,7 @@ dependencies = [
  "futures",
  "hmac",
  "http-serde",
- "hyper 0.14.26",
+ "hyper 1.0.0-rc.3",
  "jwt",
  "once_cell",
  "parking_lot 0.12.1",
@@ -1603,7 +1604,7 @@ dependencies = [
  "h2",
  "http",
  "http-body 0.4.5",
- "hyper 0.14.26",
+ "hyper 0.14.27",
  "hyper-tls",
  "ipnet",
  "js-sys",
