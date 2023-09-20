@@ -1,42 +1,28 @@
-FROM rust:latest as builder
+FROM rust:1.72-bookworm as chef
+RUN cargo install cargo-chef cargo-zigbuild
+RUN apt update && apt install -y python3-pip libssl-dev && rm -rf /var/lib/apt/lists/*
+RUN pip3 install --break-system-packages ziglang
+WORKDIR openai-hub
 
-WORKDIR /openai-hub
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-COPY Cargo.toml Cargo.lock /openai-hub/
-COPY openai-hubd/Cargo.toml /openai-hub/openai-hubd/Cargo.toml
-COPY openai-hub-core/Cargo.toml /openai-hub/openai-hub-core/Cargo.toml
-COPY openai-hub-jwt-token-gen/Cargo.toml /openai-hub/openai-hub-jwt-token-gen/Cargo.toml
-
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/openai-hub/target \
-    set -e && \
-    mkdir -p ./openai-hubd/src && echo "fn main() {}" > ./openai-hubd/src/main.rs && \
-    mkdir -p ./openai-hub-core/src && echo "fn main() {}" > ./openai-hub-core/src/main.rs && \
-    mkdir -p ./openai-hub-jwt-token-gen/src && echo "fn main() {}" > ./openai-hub-jwt-token-gen/src/main.rs && \
-    cargo build --release --all-features && \
-    rm -f ./openai-hubd/src/main.rs && \
-    rm -f ./openai-hub-core/src/main.rs && \
-    rm -f ./openai-hub-jwt-token-gen/src/main.rs
-
-COPY openai-hub-jwt-token-gen/src /openai-hub/openai-hub-jwt-token-gen/src
-COPY openai-hubd/src /openai-hub/openai-hubd/src
-COPY openai-hub-core/src /openai-hub/openai-hub-core/src
-
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/openai-hub/target \
-    set -e && \
-    touch ./openai-hubd/src/main.rs ./openai-hub-core/src/lib.rs ./openai-hub-jwt-token-gen/src/main.rs && \
-    cargo build --release --all-features && \
+FROM chef AS builder
+COPY --from=planner /openai-hub/recipe.json recipe.json
+RUN cargo chef cook --zigbuild --workspace --release --recipe-path recipe.json
+COPY . .
+RUN cargo zigbuild --release --all-features && \
     mkdir build && \
     cp /openai-hub/target/release/openai* build/
 
-FROM debian:11-slim
+FROM debian:bookworm-slim AS runtime-base
+RUN apt update && apt install -y libssl3 && rm -rf /var/lib/apt/lists/*
 
+FROM runtime-base
 WORKDIR /opt/openai-hub
-
 RUN mkdir -p /opt/openai-hub
 COPY --from=builder /openai-hub/build/openai-hubd /opt/openai-hub/
 COPY --from=builder /openai-hub/build/openai-hub-jwt-token-gen /opt/openai-hub/
 COPY config.toml acl.toml /opt/openai-hub/config/
-
 CMD ["/opt/openai-hub/openai-hubd", "-c", "config/config.toml", "-a", "config/acl.toml"]
