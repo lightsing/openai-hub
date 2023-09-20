@@ -17,7 +17,9 @@ use serde_json::Value;
 use std::io;
 use std::sync::Arc;
 use tiktoken_rs::tokenizer::get_tokenizer;
-use tiktoken_rs::{get_bpe_from_tokenizer, num_tokens_from_messages, ChatCompletionRequestMessage, FunctionCall};
+use tiktoken_rs::{
+    get_bpe_from_tokenizer, num_tokens_from_messages, ChatCompletionRequestMessage, FunctionCall,
+};
 use tokio::io::AsyncReadExt;
 use tokio::spawn;
 use tokio::sync::mpsc::Receiver;
@@ -239,7 +241,7 @@ fn count_chat_tokens(model: &str, req_body: Value, res_body: String) -> Option<T
             role: p.role,
             content: p.content,
             name: p.name,
-            function_call: p.function_call.map(|f| f.into())
+            function_call: p.function_call.map(|f| f.into()),
         })
         .collect();
     let prompt_tokens = num_tokens_from_messages(model, &prompt).ok()?;
@@ -260,7 +262,11 @@ fn count_chat_tokens(model: &str, req_body: Value, res_body: String) -> Option<T
                 if choices[choice.index].content.is_none() {
                     choices[choice.index].content = Some(c);
                 } else {
-                    choices[choice.index].content.as_mut().unwrap().push_str(c.as_str());
+                    choices[choice.index]
+                        .content
+                        .as_mut()
+                        .unwrap()
+                        .push_str(c.as_str());
                 }
             }
             if let Some(f) = choice.delta.function_call {

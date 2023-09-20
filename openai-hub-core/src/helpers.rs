@@ -22,10 +22,10 @@ mod regex_helpers {
     use tracing::{event, instrument, Level};
 
     static SPECIAL_CHARS_EXCEPT_START_REGEX: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r#"([.+?^$()\[\]{}|\\])"#).unwrap());
+        Lazy::new(|| Regex::new(r"([.+?^$()\[\]{}|\\])").unwrap());
     static SPECIAL_CHARS_EXCEPT_GROUP_REGEX: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r#"([.+?*^$()\[\]|\\])"#).unwrap());
-    static PATH_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r#"/\{(?P<name>[^/{}]+)}"#).unwrap());
+        Lazy::new(|| Regex::new(r"([.+?*^$()\[\]|\\])").unwrap());
+    static PATH_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"/\{(?P<name>[^/{}]+)}").unwrap());
 
     #[instrument(skip_all)]
     pub fn wildcards_to_regex<S: AsRef<str>, I: Iterator<Item = S>>(
