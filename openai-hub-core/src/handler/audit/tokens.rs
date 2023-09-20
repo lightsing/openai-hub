@@ -17,7 +17,7 @@ use serde_json::Value;
 use std::io;
 use std::sync::Arc;
 use tiktoken_rs::tokenizer::get_tokenizer;
-use tiktoken_rs::{get_bpe_from_tokenizer, num_tokens_from_messages, ChatCompletionRequestMessage};
+use tiktoken_rs::{get_bpe_from_tokenizer, num_tokens_from_messages, ChatCompletionRequestMessage, FunctionCall};
 use tokio::io::AsyncReadExt;
 use tokio::spawn;
 use tokio::sync::mpsc::Receiver;
@@ -222,8 +222,12 @@ fn count_chat_tokens(model: &str, req_body: Value, res_body: String) -> Option<T
     #[derive(Deserialize)]
     struct ChatCompletionRequestMessageDe {
         role: String,
-        content: String,
+        #[serde(default)]
+        content: Option<String>,
+        #[serde(default)]
         name: Option<String>,
+        #[serde(default)]
+        function_call: Option<FunctionCallDe>,
     }
     let prompt_messages = req_body.get("messages")?;
     let parsed_prompt =
@@ -235,6 +239,7 @@ fn count_chat_tokens(model: &str, req_body: Value, res_body: String) -> Option<T
             role: p.role,
             content: p.content,
             name: p.name,
+            function_call: p.function_call.map(|f| f.into())
         })
         .collect();
     let prompt_tokens = num_tokens_from_messages(model, &prompt).ok()?;
@@ -242,32 +247,29 @@ fn count_chat_tokens(model: &str, req_body: Value, res_body: String) -> Option<T
 
     let events = get_events::<ChatChoice>(res_body)?;
 
-    let mut role = String::new();
     let mut choices = vec![];
     for event in events.into_iter() {
         for choice in event.choices.into_iter() {
             if choices.len() < choice.index + 1 {
-                choices.resize(choice.index + 1, String::new());
+                choices.resize(choice.index + 1, ChatCompletionRequestMessage::default());
             }
             if let Some(r) = choice.delta.role {
-                debug_assert!(role.is_empty());
-                role = r;
+                choices[choice.index].role = r;
             }
             if let Some(c) = choice.delta.content {
-                choices[choice.index].push_str(c.as_str());
+                if choices[choice.index].content.is_none() {
+                    choices[choice.index].content = Some(c);
+                } else {
+                    choices[choice.index].content.as_mut().unwrap().push_str(c.as_str());
+                }
+            }
+            if let Some(f) = choice.delta.function_call {
+                choices[choice.index].function_call = Some(f.into());
             }
         }
     }
-    let completions: Vec<ChatCompletionRequestMessage> = choices
-        .into_iter()
-        .map(|content| ChatCompletionRequestMessage {
-            role: role.clone(),
-            content,
-            name: None,
-        })
-        .collect();
-    event!(Level::DEBUG, "completions: {:?}", completions);
-    let completion_tokens = num_tokens_from_messages(model, &completions).ok()?;
+    event!(Level::DEBUG, "completions: {:?}", choices);
+    let completion_tokens = num_tokens_from_messages(model, &choices).ok()?;
     event!(
         Level::DEBUG,
         "estimated completion tokens: {}",
@@ -309,10 +311,26 @@ struct ChatChoice {
 struct Delta {
     pub role: Option<String>,
     pub content: Option<String>,
+    pub function_call: Option<FunctionCallDe>,
+}
+
+#[derive(Deserialize)]
+pub struct FunctionCallDe {
+    pub name: String,
+    pub arguments: String,
 }
 
 #[derive(Deserialize)]
 struct CompletionChoice {
     pub text: String,
     pub index: usize,
+}
+
+impl From<FunctionCallDe> for FunctionCall {
+    fn from(f: FunctionCallDe) -> Self {
+        FunctionCall {
+            name: f.name,
+            arguments: f.arguments,
+        }
+    }
 }
