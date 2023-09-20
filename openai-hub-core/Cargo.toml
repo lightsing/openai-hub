@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-trait = "0.1.68"
-axum = { git = "https://github.com/tokio-rs/axum" }
+async-trait = "0.1"
+axum = { git = "https://github.com/tokio-rs/axum", rev = "786329d85d06549aa1b15f9e4c5d8225c658f468" }
 base64 = { version = "0.21", optional = true }
 chrono = { version = "0.4", optional = true }
 futures = "0.3"
@@ -27,7 +27,7 @@ sync_wrapper = { version = "0.1", features = ["futures"] }
 thiserror = "1.0"
 tiktoken-rs = { version = "0.4", optional = true }
 tokio = { version = "1", features = ["rt", "net"] }
-tokio-stream = "0.1.14"
+tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["io-util"] }
 toml = "0.7"
 tower = "0.4"
